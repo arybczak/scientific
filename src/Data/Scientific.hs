@@ -225,11 +225,11 @@ instance Eq Scientific where
         -- if exponents are equal we can compare the coefficients
         | e1 == e2 = c1 == c2
 
-        -- if numbers are normalised (i.e. no trailing zeroes in coefficient)
-        -- we can also compare them directly
+        -- normalized numbers (no trailing zeros in the coefficient) with
+        -- different exponents are different
         | rem c1 10 /= 0
         , rem c2 10 /= 0
-        = e1 == e2 && c1 == c2
+        = False
 
     Scientific c1 e1 == Scientific c2 e2 = case compare c1 0 of
         EQ -> c2 == 0
@@ -243,10 +243,6 @@ eqScientific1 c1 e1 c2 e2
     | log1 /= log2 = False  -- if logarithms are non-equal, numbers cannot be equal
     | otherwise = case compare e1 e2 of
         EQ -> c1 == c2
-        -- an alternative is to divide by the difference,
-        -- and check that remainder is zero.
-        --
-        -- I think it doesn't matter in practice.
         GT -> c1 * magnitude (e1 - e2) == c2
         LT -> c1                       == c2 * magnitude (e2 - e1)
   where
