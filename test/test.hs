@@ -12,6 +12,7 @@ module Main where
 
 import           Control.Exception                  hiding (assert)
 import           Control.Monad
+import           Data.Hashable
 import           Data.Int
 import           Data.Word
 import           Data.Scientific                    as Scientific
@@ -145,6 +146,25 @@ main = testMain $ testGroup "scientific"
       , testCase "-10e(maxBound)" $
           assertEqual "a number far below minBound has no Int value"
             Nothing (toBoundedInteger @Int (scientific (-10) maxBound))
+      ]
+    , testGroup "normalize"
+      [ testCase "10e(maxBound)" $
+          assertExponentOverflow "the normalized exponent maxBound + 1 does not fit in an Int"
+            (normalize (scientific 10 maxBound))
+      , testCase "toDecimalDigits 10e(maxBound)" $
+          assertExponentOverflow "the digit exponent maxBound + 2 does not fit in an Int"
+            (toDecimalDigits (scientific 10 maxBound))
+      , testCase "toDecimalDigits 1e(maxBound)" $
+          assertExponentOverflow "the digit exponent maxBound + 1 does not fit in an Int, although normalize succeeds"
+            (toDecimalDigits (scientific 1 maxBound))
+      ]
+    , testGroup "hash"
+      [ testCase "10e(maxBound) == 100e(maxBound - 1)" $
+          assertEqual "equal numbers must have equal hashes, also when the normalized exponent does not fit in an Int"
+            (hash (scientific 10 maxBound)) (hash (scientific 100 (maxBound - 1)))
+      , testProperty "same as the hash of the normalized parts" $ \salt s ->
+          let n = normalize s
+          in hashWithSalt salt s === (salt `hashWithSalt` coefficient n `hashWithSalt` base10Exponent n)
       ]
     , testGroup "Formatting" $
       [ testCase "show 10e(maxBound)" $

@@ -193,9 +193,15 @@ instance NFData Scientific where
 -- (True,True)
 --
 instance Hashable Scientific where
-    hashWithSalt salt s = salt `hashWithSalt` c `hashWithSalt` e
+    hashWithSalt salt (Scientific c e) = salt `hashWithSalt` nc `hashWithSalt` ne
       where
-        Scientific c e = normalize s
+        -- The normalized exponent is an Integer, because it may not fit in an
+        -- Int. Hashable gives an Integer the same hash as an equal Int.
+        nc, ne :: Integer
+        (nc, ne)
+            | c == 0    = (0, 0)
+            | otherwise = case stripPowers c 10 of
+                (c', k) -> (c', toInteger e + toInteger k)
 
 -- | Note that in the future I intend to change the type of the 'base10Exponent'
 -- from @Int@ to @Integer@. To be forward compatible the @Binary@ instance
@@ -1118,12 +1124,11 @@ formatScientific format mbDecs s
 -- The last property means that the coefficient will be normalized, i.e. doesn't
 -- contain trailing zeros.
 --
--- /Note:/ 'toDecimalDigits' uses 'normalize' and therefore ill-behaves
--- for extreme values.
---
+-- Raises an error if the exponent @e@ does not fit in an 'Int', e.g. for
+-- @'scientific' 10 'maxBound'@.
 toDecimalDigits :: Scientific -> ([Int], Int)
 toDecimalDigits (Scientific c e) = case decimalDigits c e of
-    (ds, de) -> let !de' = fromInteger de in (ds, de')
+    (ds, de) -> let !de' = toIntExponent de in (ds, de')
 
 ----------------------------------------------------------------------
 -- Normalization
@@ -1135,12 +1140,8 @@ toDecimalDigits (Scientific c e) = case decimalDigits c e of
 -- You should rarely have a need for this function since scientific numbers are
 -- automatically normalized when pretty-printed and in 'toDecimalDigits'.
 --
--- /Note:/ 'normalize' ill-behaves for extreme values: the Int exponent
--- may overflow
---
--- >>> normalize (scientific 10 maxBound) == scientific 1 minBound
--- True
---
+-- Raises an error if the normalized exponent does not fit in an 'Int', e.g.
+-- for @'scientific' 10 'maxBound'@.
 normalize :: Scientific -> Scientific
 normalize (Scientific c e) = case compare c 0 of
     GT ->   normalizePositive   c  e
@@ -1149,4 +1150,4 @@ normalize (Scientific c e) = case compare c 0 of
 
 normalizePositive :: Integer -> Int -> Scientific
 normalizePositive !c !e = case stripPowers c 10 of
-    (c', k) -> Scientific c' (e+k)
+    (c', k) -> Scientific c' (toIntExponent (toInteger e + toInteger k))

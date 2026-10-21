@@ -26,6 +26,13 @@ Unreleased
 	  fit in memory. Before, e.g. 1e9223372036854775805 with 5 decimal
 	  places was printed as 1.
 
+	* 'normalize' and 'toDecimalDigits' raise an error when the result
+	  needs an exponent beyond the bounds of Int, instead of returning a
+	  wrong number. For example, 'normalize' of 10e9223372036854775807
+	  returned 1.0e-9223372036854775808. Hashing does not raise this
+	  error, and the hash values of numbers whose normalized exponent fits
+	  in an Int do not change.
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when

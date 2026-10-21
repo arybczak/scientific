@@ -127,6 +127,7 @@ test-suite test-scientific
       base
     , binary
     , bytestring
+    , hashable
     , QuickCheck        >=2.14.2
     , scientific
     , tasty             >=1.4.0.1
