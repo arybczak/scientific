@@ -75,10 +75,17 @@ uninitialised = error "Data.Scientific: uninitialised element"
 
 -- | @magnitude e == 10 ^ e@
 magnitude :: Num a => Int -> a
-magnitude e | e < 0       = error "magnitude: with negative argument"
-            | e < maxExpt = cachedPow10 e
-            | otherwise   = cachedPow10 hi * 10 ^ (e - hi)
+magnitude e
+    -- A negative e only comes from an overflow in the caller. The cache lookup
+    -- does not check bounds, so it would read outside the array, or, for
+    -- minBound, wrap around to the first element.
+    | e < 0       = exponentOverflow
+    | e < maxExpt = cachedPow10 e
+    | otherwise   = cachedPow10 hi * 10 ^ (e - hi)
     where
       cachedPow10 = fromInteger . Primitive.indexArray expts10
 
       hi = maxExpt - 1
+
+exponentOverflow :: a
+exponentOverflow = error "Data.Scientific: exponent overflow"

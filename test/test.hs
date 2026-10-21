@@ -10,6 +10,7 @@
 
 module Main where
 
+import           Control.Exception                  hiding (assert)
 import           Control.Monad
 import           Data.Int
 import           Data.Word
@@ -144,6 +145,16 @@ main = testMain $ testGroup "scientific"
       , testCase "-10e(maxBound)" $
           assertEqual "a number far below minBound has no Int value"
             Nothing (toBoundedInteger @Int (scientific (-10) maxBound))
+      ]
+    , testGroup "Num"
+      [ testCase "1e(minBound) + 1e(maxBound)" $
+          assertExponentOverflow "the difference of the exponents overflows an Int"
+            (scientific 1 minBound + scientific 1 maxBound)
+      ]
+    , testGroup "Real"
+      [ testCase "toRational 1e(minBound)" $
+          assertExponentOverflow "the denominator 10^(-minBound) needs an exponent that overflows an Int"
+            (toRational (scientific 1 minBound))
       ]
     ]
 
@@ -350,6 +361,13 @@ main = testMain $ testGroup "scientific"
     , testProperty "isInteger"  $ \s -> isInteger  s == not (genericIsFloating s)
     ]
   ]
+  where
+    assertExponentOverflow :: String -> a -> Assertion
+    assertExponentOverflow preface x = do
+        r <- try @ErrorCall (evaluate x)
+        case r of
+          Left (ErrorCall msg) -> assertEqual preface "Data.Scientific: exponent overflow" msg
+          Right _ -> assertFailure (preface ++ "\nexpected the exponent overflow error, but the value was computed")
 
 -- used as type annotation
 theSci :: Scientific -> Scientific

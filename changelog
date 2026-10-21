@@ -12,6 +12,11 @@ Unreleased
 	  aeson decodes to an Int, so upgrade if your program parses such
 	  input.
 
+	* When the difference of two exponents overflows, addition,
+	  subtraction and 'toRational' raise the error "Data.Scientific:
+	  exponent overflow". In 0.3.10.0 the message was "magnitude: with
+	  negative argument".
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when
