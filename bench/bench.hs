@@ -1,9 +1,15 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Main where
 
-import Criterion.Main
+import Data.Hashable
+import Test.Tasty.Bench
 import Data.Int
 import Data.Word
 import Data.Scientific
+import qualified Data.Binary as Binary
+import qualified Data.ByteString.Builder as B
+import Data.ByteString.Builder.Scientific
 
 main :: IO ()
 main = defaultMain
@@ -58,8 +64,42 @@ main = defaultMain
          , bgroup "64"             $ benchToBoundedInteger 64
          ]
 
+       , bgroup "Eq"
+         [ bench name $ nf (uncurry (==)) t | (name, t) <- comparisonPairs ]
+
+       , bgroup "Ord"
+         [ bench name $ nf (uncurry compare) t | (name, t) <- comparisonPairs ]
+
+       , bench "hash" $ nf (hash @Scientific) $! pos
+
+       , bgroup "normalize"
+         [ bench "normalized"     $ nf normalize $! pos
+         , bench "trailing zeros" $ nf normalize $! scientific 1234512345000 (-8)
+         ]
+
+       , bgroup "isInteger"
+         [ bench "integer"  $ nf isInteger $! scientific 1234500 (-2)
+         , bench "fraction" $ nf isInteger $! pos
+         ]
+
+       , bench "multiplication" $ nf (uncurry (*)) (pos @Scientific, neg)
+
+       , bgroup "show"
+         [ bench "pos" $ nf show $! pos @Scientific
+         , bench "big" $ nf show $! big
+         , bench "exponent" $ nf show $! scientific 12345 100
+         ]
+
+       , bgroup "scientificBuilder"
+         [ bench "pos" $ nf (B.toLazyByteString . scientificBuilder) $! pos
+         , bench "big" $ nf (B.toLazyByteString . scientificBuilder) $! big
+         ]
+
+       , bench "Binary.decode" $ nf (Binary.decode @Scientific) $! Binary.encode (pos @Scientific)
+
        , bgroup "read"
-         [ benchRead "123456789.123456789"
+         [ benchRead "1.5"
+         , benchRead "123456789.123456789"
          , benchRead "12345678900000000000.12345678900000000000000000"
          , benchRead "12345678900000000000.12345678900000000000000000e1234"
          ]
@@ -94,6 +134,17 @@ main = defaultMain
 
       dangerouslySmall :: Scientific
       dangerouslySmall = read "1e-500"
+
+      comparisonPairs :: [(String, (Scientific, Scientific))]
+      comparisonPairs =
+        [ ("same exponent",            (scientific 1234512345 (-5), scientific 1234512346  (-5)))
+        , ("other exponent, equal",    (scientific 1234512345 (-5), scientific 12345123450 (-6)))
+        , ("other exponent, unequal",  (scientific 1234512345 (-5), scientific 12345123451 (-6)))
+        , ("other exponent, other sign", (scientific 1234512345 (-5), scientific (-1234512345) (-6)))
+        ]
+
+      benchRead :: String -> Benchmark
+      benchRead s = bench s $ nf (read @Scientific) s
 
 realToFracStoD :: Scientific -> Double
 realToFracStoD = fromRational . toRational

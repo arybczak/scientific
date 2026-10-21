@@ -142,5 +142,8 @@ benchmark bench-scientific
   ghc-options:      -O2
   build-depends:
       base
-    , criterion   >=0.5
+    , binary
+    , bytestring
+    , hashable
+    , tasty-bench
     , scientific
