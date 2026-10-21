@@ -153,6 +153,9 @@ main = testMain $ testGroup "scientific"
       [ testCase "10e(maxBound)" $
           assertExponentOverflow "the normalized exponent maxBound + 1 does not fit in an Int"
             (normalize (scientific 10 maxBound))
+      , testCase "10e(maxBound - 1)" $
+          assertEqual "the normalized exponent maxBound fits in an Int"
+            (1, maxBound) (let n = normalize (scientific 10 (maxBound - 1)) in (coefficient n, base10Exponent n))
       , testCase "toDecimalDigits 10e(maxBound)" $
           assertExponentOverflow "the digit exponent maxBound + 2 does not fit in an Int"
             (toDecimalDigits (scientific 10 maxBound))
@@ -164,6 +167,9 @@ main = testMain $ testGroup "scientific"
       [ testCase "10e(maxBound) == 100e(maxBound - 1)" $
           assertEqual "equal numbers must have equal hashes, also when the normalized exponent does not fit in an Int"
             (hash (scientific 10 maxBound)) (hash (scientific 100 (maxBound - 1)))
+      , testCase "10e(maxBound - 1) == 1e(maxBound)" $
+          assertEqual "equal numbers must have equal hashes when the normalized exponent is maxBound"
+            (hash (scientific 1 maxBound)) (hash (scientific 10 (maxBound - 1)))
       , testProperty "same as the hash of the normalized parts" $ \salt s ->
           let n = normalize s
           in hashWithSalt salt s === (salt `hashWithSalt` coefficient n `hashWithSalt` base10Exponent n)
@@ -215,6 +221,12 @@ main = testMain $ testGroup "scientific"
       , testCase "1e(maxBound) * 1e-1" $
           assertEqual "the exponent maxBound - 1 of the product fits in an Int"
             (scientific 1 (maxBound - 1)) (scientific 1 maxBound * scientific 1 (-1))
+      , testCase "1e(maxBound - 1) * 1e1" $
+          assertEqual "the exponent maxBound of the product fits in an Int"
+            (1, maxBound) (let p = scientific 1 (maxBound - 1) * scientific 1 1 in (coefficient p, base10Exponent p))
+      , testCase "1e(minBound + 1) * 1e-1" $
+          assertEqual "the exponent minBound of the product fits in an Int"
+            (1, minBound) (let p = scientific 1 (minBound + 1) * scientific 1 (-1) in (coefficient p, base10Exponent p))
       ]
     , testGroup "Parsing"
       [ testCase "0.1e-9223372036854775808" $

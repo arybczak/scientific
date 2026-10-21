@@ -11,6 +11,7 @@ module Utils
     , maxExpt
     , magnitude
     , toIntExponent
+    , exponentOverflow
     , stripPowers
     , decimalDigits
     ) where

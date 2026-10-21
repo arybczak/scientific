@@ -195,15 +195,18 @@ instance NFData Scientific where
 -- (True,True)
 --
 instance Hashable Scientific where
-    hashWithSalt salt (Scientific c e) = salt `hashWithSalt` nc `hashWithSalt` ne
+    hashWithSalt salt (Scientific c e)
+        | c == 0           = hashParts 0 0
+        -- The normalized exponent does not fit in an Int.
+        | e > maxBound - k = salt `hashWithSalt` c' `hashWithSalt` (toInteger e + toInteger k)
+        | otherwise        = hashParts c' (e + k)
       where
-        -- The normalized exponent is an Integer, because it may not fit in an
-        -- Int. Hashable gives an Integer the same hash as an equal Int.
-        nc, ne :: Integer
-        (nc, ne)
-            | c == 0    = (0, 0)
-            | otherwise = case stripPowers c 10 of
-                (c', k) -> (c', toInteger e + toInteger k)
+        c' :: Integer
+        k :: Int
+        (c', k) = stripPowers c 10
+
+        hashParts :: Integer -> Int -> Int
+        hashParts x y = salt `hashWithSalt` x `hashWithSalt` y
 
 -- | Note that in the future I intend to change the type of the 'base10Exponent'
 -- from @Int@ to @Integer@. To be forward compatible the @Binary@ instance
@@ -301,8 +304,13 @@ instance Num Scientific where
            r = magnitude (e1 - e2)
     {-# INLINABLE (-) #-}
 
-    Scientific c1 e1 * Scientific c2 e2 =
-        Scientific (c1 * c2) (toIntExponent (toInteger e1 + toInteger e2))
+    Scientific c1 e1 * Scientific c2 e2
+        -- The sum e overflowed exactly when its sign differs from the signs of
+        -- both exponents.
+        | (e1 `xor` e) .&. (e2 `xor` e) >= 0 = Scientific (c1 * c2) e
+        | otherwise = exponentOverflow
+      where
+        e = e1 + e2
     {-# INLINABLE (*) #-}
 
     abs (Scientific c e) = Scientific (abs c) e
@@ -1150,4 +1158,6 @@ normalize (Scientific c e) = case compare c 0 of
 
 normalizePositive :: Integer -> Int -> Scientific
 normalizePositive !c !e = case stripPowers c 10 of
-    (c', k) -> Scientific c' (toIntExponent (toInteger e + toInteger k))
+    -- k is not negative, so maxBound - k cannot overflow.
+    (c', k) | e > maxBound - k -> exponentOverflow
+            | otherwise        -> Scientific c' (e + k)
