@@ -204,6 +204,26 @@ main = testMain $ testGroup "scientific"
       [ testCase "1e(minBound) + 1e(maxBound)" $
           assertExponentOverflow "the difference of the exponents overflows an Int"
             (scientific 1 minBound + scientific 1 maxBound)
+      , testCase "1e(maxBound) * 1e1" $
+          assertExponentOverflow "the exponent maxBound + 1 of the product does not fit in an Int"
+            (scientific 1 maxBound * scientific 1 1)
+      , testCase "1e(minBound) * 1e-1" $
+          assertExponentOverflow "the exponent minBound - 1 of the product does not fit in an Int"
+            (scientific 1 minBound * scientific 1 (-1))
+      , testCase "1e(maxBound) * 1e-1" $
+          assertEqual "the exponent maxBound - 1 of the product fits in an Int"
+            (scientific 1 (maxBound - 1)) (scientific 1 maxBound * scientific 1 (-1))
+      ]
+    , testGroup "Fractional"
+        -- Without the fix, this computes 10^maxBound. The runtime cannot
+        -- interrupt a multiplication of huge numbers, so the timeout fails
+        -- the test only when the current one ends, after up to a minute.
+      [ localOption (mkTimeout 10000000) $ testCase "1e(minBound) / 1e1" $
+          assertExponentOverflow "the difference minBound - 1 of the exponents does not fit in an Int"
+            (scientific 1 minBound / scientific 1 1)
+      , testCase "1e(maxBound) / 1e-1" $
+          assertExponentOverflow "the difference maxBound + 1 of the exponents does not fit in an Int"
+            (scientific 1 maxBound / scientific 1 (-1))
       ]
     , testGroup "Real"
       [ testCase "toRational 1e(minBound)" $

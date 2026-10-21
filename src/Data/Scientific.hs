@@ -299,7 +299,7 @@ instance Num Scientific where
     {-# INLINABLE (-) #-}
 
     Scientific c1 e1 * Scientific c2 e2 =
-        Scientific (c1 * c2) (e1 + e2)
+        Scientific (c1 * c2) (toIntExponent (toInteger e1 + toInteger e2))
     {-# INLINABLE (*) #-}
 
     abs (Scientific c e) = Scientific (abs c) e
@@ -353,7 +353,7 @@ instance Fractional Scientific where
         | d < 0     = fromRational (x / (fromInteger (magnitude (-d))))
         | otherwise = fromRational (x *  fromInteger (magnitude   d))
       where
-        d = e1 - e2
+        d = toIntExponent (toInteger e1 - toInteger e2)
         x = c1 % c2
 
     fromRational rational =

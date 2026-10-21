@@ -33,6 +33,13 @@ Unreleased
 	  error, and the hash values of numbers whose normalized exponent fits
 	  in an Int do not change.
 
+	* Multiplication raises an error when the exponent of the product does
+	  not fit in an Int, also when the product is 0. Division raises an
+	  error when the difference of the exponents, or its negation, does not
+	  fit in an Int. Before, 1e9223372036854775807 * 1e1 gave the tiny
+	  number 1.0e-9223372036854775808, and 1e-9223372036854775808 / 1e1 did
+	  not finish.
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when
