@@ -40,6 +40,10 @@ Unreleased
 	  number 1.0e-9223372036854775808, and 1e-9223372036854775808 / 1e1 did
 	  not finish.
 
+	* Binary decoding fails on an exponent that does not fit in an Int.
+	  Before, the exponent wrapped around, so a huge number could decode as
+	  a tiny one.
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when

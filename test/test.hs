@@ -12,6 +12,7 @@ module Main where
 
 import           Control.Exception                  hiding (assert)
 import           Control.Monad
+import           Data.Either
 import           Data.Hashable
 import           Data.Int
 import           Data.Word
@@ -21,7 +22,7 @@ import           Test.Tasty.HUnit
 import           Test.QuickCheck                       (Property, (===), (.&&.))
 import qualified Test.QuickCheck                    as QC
 import           Test.Tasty.QuickCheck                 (testProperty)
-import qualified Data.Binary                        as Binary (encode, decode)
+import qualified Data.Binary                        as Binary
 import qualified Data.Text.Lazy                     as TL  (unpack)
 import qualified Data.Text.Lazy.Builder             as TLB (toLazyText)
 import qualified Data.Text.Lazy.Builder.Scientific  as T
@@ -213,6 +214,20 @@ main = testMain $ testGroup "scientific"
       , testCase "1e(maxBound) * 1e-1" $
           assertEqual "the exponent maxBound - 1 of the product fits in an Int"
             (scientific 1 (maxBound - 1)) (scientific 1 maxBound * scientific 1 (-1))
+      ]
+    , testGroup "Binary"
+      [ testCase "exponent maxBound + 1" $
+          assertBool "decoding must fail, because the exponent maxBound + 1 does not fit in an Int"
+            (isLeft (decodeExponent (toInteger (maxBound @Int) + 1)))
+      , testCase "exponent minBound - 1" $
+          assertBool "decoding must fail, because the exponent minBound - 1 does not fit in an Int"
+            (isLeft (decodeExponent (toInteger (minBound @Int) - 1)))
+      , testCase "exponent maxBound" $
+          assertEqual "decoding must accept the exponent maxBound"
+            (Right (scientific 1 maxBound)) (decodeExponent (toInteger (maxBound @Int)))
+      , testCase "exponent minBound" $
+          assertEqual "decoding must accept the exponent minBound"
+            (Right (scientific 1 minBound)) (decodeExponent (toInteger (minBound @Int)))
       ]
     , testGroup "Fractional"
         -- Without the fix, this computes 10^maxBound. The runtime cannot
@@ -442,6 +457,12 @@ main = testMain $ testGroup "scientific"
         case r of
           Left (ErrorCall msg) -> assertEqual preface "Data.Scientific: exponent overflow" msg
           Right _ -> assertFailure (preface ++ "\nexpected the exponent overflow error, but the value was computed")
+
+    -- The encoded number has the coefficient 1.
+    decodeExponent :: Integer -> Either String Scientific
+    decodeExponent e = case Binary.decodeOrFail (Binary.encode @(Integer, Integer) (1, e)) of
+        Left (_, _, err) -> Left err
+        Right (_, _, s)  -> Right s
 
 -- used as type annotation
 theSci :: Scientific -> Scientific

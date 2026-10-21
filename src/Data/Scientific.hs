@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Module      :  Data.Scientific
@@ -102,6 +103,7 @@ import           Control.Exception            (throw, ArithException(DivideByZer
 import           Control.Monad                (mplus)
 import           Control.DeepSeq              (NFData, rnf)
 import           Data.Binary                  (Binary, get, put)
+import           Data.Bits
 import           Data.Char                    (intToDigit, ord)
 import           Data.Data                    (Data)
 import           Data.Hashable                (Hashable(..))
@@ -208,7 +210,12 @@ instance Hashable Scientific where
 -- already encodes the exponent as 'Integer'.
 instance Binary Scientific where
     put (Scientific c e) = put c *> put (toInteger e)
-    get = Scientific <$> get <*> (fromInteger <$> get)
+    get = do
+        c <- get
+        e <- get @Integer
+        maybe (fail "Data.Scientific: the exponent does not fit in an Int")
+              (pure . Scientific c)
+              (toIntegralSized e)
 
 -- | Scientific numbers can be safely compared for equality. No magnitude @10^e@
 -- is calculated so there's no risk of a blowup in space or time when comparing
