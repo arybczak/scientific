@@ -800,10 +800,11 @@ toBoundedInteger (isInteger_ -> Just (Scientific c e))
     | dangerouslyBig = Nothing
     | otherwise      = fromIntegerBounded n
   where
-    l  = integerLog10' (abs c) + e
+    -- An Int sum would overflow when e is close to maxBound.
+    l  = toInteger (integerLog10' (abs c)) + toInteger e
 
     -- whether logarithm of s is bigger than logarithm of source type bounds
-    dangerouslyBig = l > 1 + integerLog10' (max (abs iMinBound) (abs iMaxBound))
+    dangerouslyBig = l > 1 + toInteger (integerLog10' (max (abs iMinBound) (abs iMaxBound)))
 
     fromIntegerBounded :: Integer -> Maybe i
     fromIntegerBounded i

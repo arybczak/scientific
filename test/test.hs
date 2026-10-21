@@ -134,6 +134,17 @@ main = testMain $ testGroup "scientific"
           assertEqual "a tiny positive number is not an integer, and it rounds to the Double 0"
             (Left 0) (floatingOrInteger @Double @Int (scientific 1 minBound))
       ]
+      -- Without the fix, these compute 10^maxBound. The runtime cannot
+      -- interrupt a multiplication of huge numbers, so the timeout fails the
+      -- test only when the current one ends, after up to a minute.
+    , localOption (mkTimeout 10000000) $ testGroup "toBoundedInteger"
+      [ testCase "10e(maxBound)" $
+          assertEqual "a number far above maxBound has no Int value"
+            Nothing (toBoundedInteger @Int (scientific 10 maxBound))
+      , testCase "-10e(maxBound)" $
+          assertEqual "a number far below minBound has no Int value"
+            Nothing (toBoundedInteger @Int (scientific (-10) maxBound))
+      ]
     ]
 
   , testProperty "normalization"
