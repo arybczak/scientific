@@ -1,3 +1,11 @@
+Unreleased
+
+	* Fix 'isInteger', 'isFloating', 'toBoundedInteger' and
+	  'floatingOrInteger' for the exponent minBound. In 0.3.9.0 they gave
+	  wrong results, e.g. 'toBoundedInteger' converted
+	  1e-9223372036854775808 to Just 1, and in 0.3.10.0 they raise an
+	  error.
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when

@@ -15,7 +15,7 @@ import           Data.Int
 import           Data.Word
 import           Data.Scientific                    as Scientific
 import           Test.Tasty
-import           Test.Tasty.HUnit                          (testCase, (@?=), (@=?), Assertion, assertBool)
+import           Test.Tasty.HUnit
 import           Test.QuickCheck                       (Property, (===), (.&&.))
 import qualified Test.QuickCheck                    as QC
 import           Test.Tasty.QuickCheck                 (testProperty)
@@ -119,6 +119,20 @@ main = testMain $ testGroup "scientific"
       [ testCase "1e1000000"  $ assertBool "Should be infinity!" $ isInfinite $
                                   (toRealFloat (read "1e1000000" :: Scientific) :: Double)
       , testCase "1e-1000000" $ (toRealFloat (read "1e-1000000" :: Scientific) :: Double) @?= 0
+      ]
+    ]
+
+  , testGroup "Exponent overflow"
+    [ testGroup "isInteger"
+      [ testCase "1e(minBound)" $
+          assertBool "a tiny positive number is not an integer"
+            (not (isInteger (scientific 1 minBound)))
+      , testCase "toBoundedInteger 1e(minBound)" $
+          assertEqual "a tiny positive number is not an integer, so it has no Int value"
+            Nothing (toBoundedInteger @Int (scientific 1 minBound))
+      , testCase "floatingOrInteger 1e(minBound)" $
+          assertEqual "a tiny positive number is not an integer, and it rounds to the Double 0"
+            (Left 0) (floatingOrInteger @Double @Int (scientific 1 minBound))
       ]
     ]
 

@@ -881,7 +881,8 @@ isInteger_ :: Scientific -> Maybe Scientific
 isInteger_ s@(Scientific c e)
     | e >= 0 = Just s
     | c == 0 = Just (Scientific c 0)
-    | integerLog10' (abs c) < negate e = Nothing
+    -- negate e would overflow when e is minBound.
+    | integerLog10' (abs c) + e < 0 = Nothing
 
     -- here the magnitude (negate e) is smaller than c because of previous check.
     -- thus dividing by it once is at least as fast as normalising of whole scientific number
