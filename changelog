@@ -17,6 +17,15 @@ Unreleased
 	  exponent overflow". In 0.3.10.0 the message was "magnitude: with
 	  negative argument".
 
+	* 'show', 'formatScientific' and the builders print an exponent beyond
+	  the bounds of Int correctly, without a change to any type. For
+	  example, 10e9223372036854775807 was shown as
+	  1.0e-9223372036854775808, and is now shown as
+	  1.0e9223372036854775808. Fixed notation raises an error when the
+	  number of digits does not fit in an Int, because the digits would not
+	  fit in memory. Before, e.g. 1e9223372036854775805 with 5 decimal
+	  places was printed as 1.
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when

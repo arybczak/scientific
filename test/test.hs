@@ -146,6 +146,40 @@ main = testMain $ testGroup "scientific"
           assertEqual "a number far below minBound has no Int value"
             Nothing (toBoundedInteger @Int (scientific (-10) maxBound))
       ]
+    , testGroup "Formatting" $
+      [ testCase "show 10e(maxBound)" $
+          assertEqual "show must print the exponent maxBound + 1 without wrapping"
+            "1.0e9223372036854775808" (show (scientific 10 maxBound))
+      , testCase "show -10e(maxBound)" $
+          assertEqual "show must print the exponent maxBound + 1 of a negative number without wrapping"
+            "-1.0e9223372036854775808" (show (scientific (-10) maxBound))
+        -- Without the error, this would print zeros until memory runs out,
+        -- so the timeout turns a hang into a failure.
+      , localOption (mkTimeout 10000000) $ testCase "Fixed 10e(maxBound)" $
+          assertExponentOverflow "fixed notation would need more zeros than an Int can count"
+            (length (formatScientific Scientific.Fixed Nothing (scientific 10 maxBound)))
+      , localOption (mkTimeout 10000000) $ testCase "Fixed (Just 5) 1e(maxBound - 2)" $ do
+          let s = scientific 1 (maxBound - 2)
+          assertExponentOverflow "formatScientific: the exponent plus the decimal places overflows an Int"
+            (length (formatScientific Scientific.Fixed (Just 5) s))
+          assertExponentOverflow "Text builder: the exponent plus the decimal places overflows an Int"
+            (length (TL.unpack (TLB.toLazyText (T.formatScientificBuilder Scientific.Fixed (Just 5) s))))
+          assertExponentOverflow "ByteString builder: the exponent plus the decimal places overflows an Int"
+            (length (BLC8.unpack (B.toLazyByteString (B.formatScientificBuilder Scientific.Fixed (Just 5) s))))
+      ] ++
+      [ testCase (name ++ " " ++ show (fmt, decs)) $
+          assertEqual (name ++ " must print " ++ what ++ " without wrapping") expected (render fmt decs s)
+      | (name, render) <-
+          [ ("formatScientific", formatScientific)
+          , ("Text builder", \fmt decs -> TL.unpack . TLB.toLazyText . T.formatScientificBuilder fmt decs)
+          , ("ByteString builder", \fmt decs -> BLC8.unpack . B.toLazyByteString . B.formatScientificBuilder fmt decs)
+          ]
+      , (fmt, decs, s, expected, what) <-
+          [ (Scientific.Generic, Nothing, scientific 10 maxBound, "1.0e9223372036854775808", "the exponent maxBound + 1")
+          , (Scientific.Exponent, Nothing, scientific 10 maxBound, "1.0e9223372036854775808", "the exponent maxBound + 1")
+          , (Scientific.Exponent, Just 1, scientific 999 maxBound, "1.0e9223372036854775810", "the exponent maxBound + 3 after rounding up")
+          ]
+      ]
     , testGroup "Num"
       [ testCase "1e(minBound) + 1e(maxBound)" $
           assertExponentOverflow "the difference of the exponents overflows an Int"

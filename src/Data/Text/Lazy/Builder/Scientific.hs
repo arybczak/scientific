@@ -14,7 +14,7 @@ import Data.Text.Lazy.Builder.RealFloat (FPFormat(..))
 import Data.Text.Lazy.Builder       (Builder, fromString, singleton, fromText)
 import Data.Text.Lazy.Builder.Int   (decimal)
 import qualified Data.Text as T     (replicate)
-import Utils (roundTo, i2d)
+import Utils
 
 import Data.Monoid                  ((<>))
 
@@ -31,9 +31,13 @@ formatScientificBuilder :: FPFormat
                         -> Scientific
                         -> Builder
 formatScientificBuilder fmt decs scntfc
-   | scntfc < 0 = singleton '-' <> doFmt fmt (Scientific.toDecimalDigits (-scntfc))
-   | otherwise  =                  doFmt fmt (Scientific.toDecimalDigits   scntfc)
+   | scntfc < 0 = singleton '-' <> doFmt fmt (digits (-scntfc))
+   | otherwise  =                  doFmt fmt (digits   scntfc)
  where
+  digits :: Scientific -> ([Int], Integer)
+  digits s = decimalDigits (Scientific.coefficient s) (Scientific.base10Exponent s)
+
+  doFmt :: FPFormat -> ([Int], Integer) -> Builder
   doFmt format (is, e) =
     let ds = map i2d is in
     case format of
@@ -58,9 +62,13 @@ formatScientificBuilder fmt decs scntfc
           let (ei,is') = roundTo (dec'+1) is
           in case map i2d (if ei > 0 then init is' else is') of
                [] -> mempty
-               d:ds' -> singleton d <> singleton '.' <> fromString ds' <> singleton 'e' <> decimal (e-1+ei)
-     Fixed ->
+               d:ds' -> singleton d <> singleton '.' <> fromString ds' <> singleton 'e' <> decimal (e - 1 + toInteger ei)
+     Fixed -> doFixed is (toIntExponent e)
+
+  doFixed :: [Int] -> Int -> Builder
+  doFixed is e =
       let
+       ds = map i2d is
        mk0 ls = case ls of { "" -> "0" ; _ -> fromString ls}
       in
       case decs of
@@ -77,7 +85,9 @@ formatScientificBuilder fmt decs scntfc
         let dec' = max dec 0 in
         if e >= 0 then
          let
-          (ei,is') = roundTo (dec' + e) is
+          -- dec' + e may overflow an Int, and so many digits would not fit
+          -- in memory anyway.
+          (ei,is') = roundTo (toIntExponent (toInteger dec' + toInteger e)) is
           (ls,rs)  = splitAt (e+ei) (map i2d is')
          in
          mk0 ls <> (if null rs then "" else singleton '.' <> fromString rs)

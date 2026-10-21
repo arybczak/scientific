@@ -10,6 +10,9 @@ module Utils
     , i2d
     , maxExpt
     , magnitude
+    , toIntExponent
+    , stripPowers
+    , decimalDigits
     ) where
 
 import GHC.Base (Int(I#), Char(C#), chr#, ord#, (+#))
@@ -17,7 +20,9 @@ import GHC.Base (Int(I#), Char(C#), chr#, ord#, (+#))
 import qualified Data.Primitive.Array as Primitive
 import           Control.Monad.ST             (runST)
 
-import           Data.Bits                    (unsafeShiftR)
+import           Data.Bits
+import           Data.Char
+import           Data.Maybe
 
 roundTo :: Int -> [Int] -> (Int, [Int])
 roundTo d is =
@@ -87,5 +92,35 @@ magnitude e
 
       hi = maxExpt - 1
 
+-- | Converts an exponent to an 'Int'. Raises an error if it does not fit.
+toIntExponent :: Integer -> Int
+toIntExponent = fromMaybe exponentOverflow . toIntegralSized
+
 exponentOverflow :: a
 exponentOverflow = error "Data.Scientific: exponent overflow"
+
+-- | @stripPowers c p@ removes all factors of @p@ from @c@, and returns the
+-- number of removed factors. Precondition: @c /= 0@.
+stripPowers :: Integer -> Integer -> (Integer, Int)
+stripPowers !c !p
+    | r /= 0
+    = (c, 0)
+
+    -- remove factors of p*p; this speedups the normalisation by quite a bit.
+    | let (c', k) = stripPowers q (p*p)
+    , let (q', r') = quotRem c' p
+    = if r' == 0 then (q', 2 * k + 2) else (c', 2 * k + 1)
+  where
+    (q, r) = quotRem c p
+
+-- | @decimalDigits c e@ is 'Data.Scientific.toDecimalDigits' of the
+-- non-negative scientific number with coefficient @c@ and exponent @e@, but
+-- the returned exponent is an 'Integer', so it cannot overflow.
+decimalDigits :: Integer -> Int -> ([Int], Integer)
+decimalDigits 0 _ = ([0], 0)
+decimalDigits c e = (ds, toInteger e + toInteger k + toInteger (length ds))
+  where
+    (c', k) = stripPowers c 10
+
+    -- show for Integer is faster than repeated quotRem _ 10
+    ds = map (\d -> ord d - ord '0') (show c')

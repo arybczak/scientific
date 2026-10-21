@@ -121,7 +121,7 @@ import           Text.ParserCombinators.ReadP     ( ReadP )
 import           Data.Text.Lazy.Builder.RealFloat (FPFormat(..))
 
 import GHC.Integer.Compat (quotRemInteger, quotInteger, divInteger)
-import Utils              (maxExpt, roundTo, magnitude)
+import Utils
 
 import Language.Haskell.TH.Syntax (Lift (..))
 
@@ -1005,14 +1005,14 @@ instance Show Scientific where
         prefixMinusPrec = 6
 
         showPositive :: Scientific -> ShowS
-        showPositive = showString . fmtAsGeneric . toDecimalDigits
+        showPositive (Scientific c e) = showString (fmtAsGeneric (decimalDigits c e))
 
-        fmtAsGeneric :: ([Int], Int) -> String
-        fmtAsGeneric x@(_is, e)
+        fmtAsGeneric :: ([Int], Integer) -> String
+        fmtAsGeneric x@(is, e)
             | e < 0 || e > 7 = fmtAsExponent x
-            | otherwise      = fmtAsFixed    x
+            | otherwise      = fmtAsFixed (is, toIntExponent e)
 
-fmtAsExponent :: ([Int], Int) -> String
+fmtAsExponent :: ([Int], Integer) -> String
 fmtAsExponent (is, e) =
     case ds of
       "0"     -> "0.0e0"
@@ -1050,27 +1050,27 @@ formatScientific format mbDecs s
     | otherwise         =     formatPositiveScientific   s
   where
     formatPositiveScientific :: Scientific -> String
-    formatPositiveScientific s' = case format of
-        Generic  -> fmtAsGeneric        $ toDecimalDigits s'
-        Exponent -> fmtAsExponentMbDecs $ toDecimalDigits s'
-        Fixed    -> fmtAsFixedMbDecs    $ toDecimalDigits s'
+    formatPositiveScientific (Scientific c e) = case format of
+        Generic  -> fmtAsGeneric        $ decimalDigits c e
+        Exponent -> fmtAsExponentMbDecs $ decimalDigits c e
+        Fixed    -> fmtAsFixedMbDecs    $ decimalDigits c e
 
-    fmtAsGeneric :: ([Int], Int) -> String
+    fmtAsGeneric :: ([Int], Integer) -> String
     fmtAsGeneric x@(_is, e)
         | e < 0 || e > 7 = fmtAsExponentMbDecs x
         | otherwise      = fmtAsFixedMbDecs x
 
-    fmtAsExponentMbDecs :: ([Int], Int) -> String
+    fmtAsExponentMbDecs :: ([Int], Integer) -> String
     fmtAsExponentMbDecs x = case mbDecs of
                               Nothing  -> fmtAsExponent x
                               Just dec -> fmtAsExponentDecs dec x
 
-    fmtAsFixedMbDecs :: ([Int], Int) -> String
-    fmtAsFixedMbDecs x = case mbDecs of
-                           Nothing  -> fmtAsFixed x
-                           Just dec -> fmtAsFixedDecs dec x
+    fmtAsFixedMbDecs :: ([Int], Integer) -> String
+    fmtAsFixedMbDecs (is, e) = case mbDecs of
+                           Nothing  -> fmtAsFixed (is, toIntExponent e)
+                           Just dec -> fmtAsFixedDecs dec (is, toIntExponent e)
 
-    fmtAsExponentDecs :: Int -> ([Int], Int) -> String
+    fmtAsExponentDecs :: Int -> ([Int], Integer) -> String
     fmtAsExponentDecs dec (is, e) =
         let dec' = max dec 1 in
             case is of
@@ -1079,14 +1079,16 @@ formatScientific format mbDecs s
               let (ei,is') = roundTo (dec'+1) is
               in case map intToDigit (if ei > 0 then init is' else is') of
                    [] -> ""
-                   d:ds' -> d:'.':ds' ++ 'e':show (e-1+ei)
+                   d:ds' -> d:'.':ds' ++ 'e':show (e - 1 + toInteger ei)
 
     fmtAsFixedDecs :: Int -> ([Int], Int) -> String
     fmtAsFixedDecs dec (is, e) =
         let dec' = max dec 0 in
         if e >= 0 then
          let
-          (ei,is') = roundTo (dec' + e) is
+          -- dec' + e may overflow an Int, and so many digits would not fit
+          -- in memory anyway.
+          (ei,is') = roundTo (toIntExponent (toInteger dec' + toInteger e)) is
           (ls,rs)  = splitAt (e+ei) (map intToDigit is')
          in
          mk0 ls ++ (if null rs then "" else '.':rs)
@@ -1120,13 +1122,8 @@ formatScientific format mbDecs s
 -- for extreme values.
 --
 toDecimalDigits :: Scientific -> ([Int], Int)
-toDecimalDigits (Scientific 0  _)  = ([0], 0)
-toDecimalDigits (Scientific c' e') =
-    case normalizePositive c' e' of
-      Scientific c e -> (ds, length ds + e)
-        where
-          -- show for Integer is faster than repeated quotRem _ 10
-          ds = map (\d -> ord d - ord '0') (show c)
+toDecimalDigits (Scientific c e) = case decimalDigits c e of
+    (ds, de) -> let !de' = fromInteger de in (ds, de')
 
 ----------------------------------------------------------------------
 -- Normalization
@@ -1153,15 +1150,3 @@ normalize (Scientific c e) = case compare c 0 of
 normalizePositive :: Integer -> Int -> Scientific
 normalizePositive !c !e = case stripPowers c 10 of
     (c', k) -> Scientific c' (e+k)
-
-stripPowers :: Integer -> Integer -> (Integer, Int)
-stripPowers !c !p
-    | r /= 0
-    = (c, 0)
-
-    -- remove factors of p*p; this speedups the normalisation by quite a bit.
-    | let (c', k) = stripPowers q (p*p)
-    , let (q', r') = quotRem c' p
-    = if r' == 0 then (q', 2 * k + 2) else (c', 2 * k + 1)
-  where
-    (q, r) = quotRem c p
