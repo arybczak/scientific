@@ -27,6 +27,7 @@ import qualified Data.Text.Lazy                     as TL  (unpack)
 import qualified Data.Text.Lazy.Builder             as TLB (toLazyText)
 import qualified Data.Text.Lazy.Builder.Scientific  as T
 import           Numeric ( floatToDigits )
+import           Text.Read
 
 import qualified Data.ByteString.Lazy.Char8         as BLC8
 import qualified Data.ByteString.Builder.Scientific as B
@@ -214,6 +215,32 @@ main = testMain $ testGroup "scientific"
       , testCase "1e(maxBound) * 1e-1" $
           assertEqual "the exponent maxBound - 1 of the product fits in an Int"
             (scientific 1 (maxBound - 1)) (scientific 1 maxBound * scientific 1 (-1))
+      ]
+    , testGroup "Parsing"
+      [ testCase "0.1e-9223372036854775808" $
+          assertEqual "the exponent minBound - 1 does not fit in an Int, so parsing must fail"
+            Nothing (readMaybe @Scientific "0.1e-9223372036854775808")
+      , testCase "1e9223372036854775808" $
+          assertEqual "the exponent maxBound + 1 does not fit in an Int, so parsing must fail"
+            Nothing (readMaybe @Scientific "1e9223372036854775808")
+      , testCase "1e999...9" $
+          assertEqual "an exponent of a million nines does not fit in an Int, so parsing must fail"
+            Nothing (readMaybe @Scientific ("1e" ++ replicate 1000000 '9'))
+      , testCase "1e9223372036854775807" $
+          assertEqual "the exponent maxBound fits in an Int"
+            (Just (scientific 1 maxBound)) (readMaybe "1e9223372036854775807")
+      , testCase "1e-9223372036854775808" $
+          assertEqual "the exponent minBound fits in an Int"
+            (Just (scientific 1 minBound)) (readMaybe "1e-9223372036854775808")
+      , testCase "0.1e9223372036854775808" $
+          assertEqual "the fraction digit lowers the exponent maxBound + 1 to maxBound, which fits in an Int"
+            (Just (scientific 1 maxBound)) (readMaybe "0.1e9223372036854775808")
+      , testCase "read . show 10e(maxBound)" $
+          assertEqual "read must parse what show prints for an exponent beyond maxBound"
+            (scientific 10 maxBound) (read (show (scientific 10 maxBound)))
+      , testCase "1e000...01" $
+          assertEqual "the leading zeros of the exponent must not change its value"
+            (Just (scientific 1 1)) (readMaybe ("1e" ++ replicate 1000000 '0' ++ "1"))
       ]
     , testGroup "Binary"
       [ testCase "exponent maxBound + 1" $

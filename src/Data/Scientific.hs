@@ -943,29 +943,28 @@ scientificP = do
   let positive = (('+' ==) <$> ReadP.satisfy isSign) `mplus` return True
   pos <- positive
 
-  let step :: Num a => a -> Int -> a
-      step a digit = a * 10 + fromIntegral digit
-      {-# INLINE step #-}
-
   intDigits  <- ReadP.munch1 isDecimal
   fracDigits <- (ReadP.satisfy (== '.') >> ReadP.munch1 isDecimal)
                 ReadP.<++ return ""
 
   let coeff = digitsToInteger (intDigits ++ fracDigits)
-      expnt = negate (length fracDigits)
+      expnt = negate (toInteger (length fracDigits))
 
       signedCoeff | pos       =   coeff
                   | otherwise = (-coeff)
 
       eP = do posE <- positive
-              e <- foldDigits step 0
+              e <- digitsToInteger <$> ReadP.munch1 isDecimal
               if posE
                 then return   e
                 else return (-e)
 
-  (ReadP.satisfy isE >>
-           ((Scientific signedCoeff . (expnt +)) <$> eP)) `mplus`
-     return (Scientific signedCoeff    expnt)
+      fromExponent :: Integer -> ReadP Scientific
+      fromExponent e = maybe ReadP.pfail (return . Scientific signedCoeff)
+                             (toIntegralSized e)
+
+  (ReadP.satisfy isE >> eP >>= fromExponent . (expnt +)) `mplus`
+     fromExponent expnt
   where
     -- Adding one digit at a time would take quadratic time in the number of
     -- digits.
@@ -987,22 +986,6 @@ scientificP = do
         -- The number of decimal digits that always fit in an Int.
         maxIntDigits :: Int
         maxIntDigits = length (show (maxBound @Int)) - 1
-
-foldDigits :: (a -> Int -> a) -> a -> ReadP a
-foldDigits f z = do
-    c <- ReadP.satisfy isDecimal
-    let digit = ord c - 48
-        a = f z digit
-
-    ReadP.look >>= go a
-  where
-    go !a [] = return a
-    go !a (c:cs)
-        | isDecimal c = do
-            _ <- ReadP.get
-            let digit = ord c - 48
-            go (f a digit) cs
-        | otherwise = return a
 
 isDecimal :: Char -> Bool
 isDecimal c = c >= '0' && c <= '9'
