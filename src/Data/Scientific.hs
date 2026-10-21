@@ -151,7 +151,7 @@ data Scientific = Scientific
       --
       -- Use 'normalize' to do manual normalization.
       --
-      -- /WARNING:/ 'coefficient' and 'base10exponent' violate
+      -- /WARNING:/ 'coefficient' and 'base10Exponent' violate
       -- substantivity of 'Eq'.
       --
       -- >>> let x = scientific 1 2
@@ -882,8 +882,8 @@ isInteger :: Scientific -> Bool
 isInteger = isJust . isInteger_
 
 -- | Like 'isInteger', but if number is integer, return
--- 'Scientific' such that 'base10exponent' is non-negative.
--- /Note:/ this resulting scientific number might still be not 'normalise'd.
+-- 'Scientific' such that 'base10Exponent' is non-negative.
+-- /Note:/ this resulting scientific number might still be not 'normalize'd.
 --
 -- @since 0.3.9
 --
