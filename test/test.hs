@@ -268,6 +268,15 @@ main = testMain $ testGroup "scientific"
     , testCase "scientificP \"3.0e2\""   $ testScientificP "3.0e2"   [(3.0, "e2"), (300.0, "")]
     , testCase "scientificP \"+3.0e+2\"" $ testScientificP "+3.0e+2" [(3.0, "e+2"), (300.0, "")]
     , testCase "scientificP \"-3.0e-2\"" $ testScientificP "-3.0e-2" [(-3.0, "e-2"), (-3.0e-2, "")]
+    , testProperty "long coefficient" $
+        QC.forAll (QC.scale (* 10) (QC.listOf1 (QC.elements ['0'..'9']))) $ \ds ->
+          coefficient (read ds) === read @Integer ds
+      -- The timeout checks the speed: a parser that takes quadratic time
+      -- needed 62 s for this test, and the current one needs 0.6 s.
+    , localOption (mkTimeout 10000000) $ testCase "0.999...9" $ do
+        let s = read @Scientific ("0." ++ replicate 2000000 '9')
+        assertEqual "the fraction digits must form the coefficient, and their count the negated exponent"
+          (10 ^ (2000000 :: Int) - 1, -2000000) (coefficient s, base10Exponent s)
     ]
 
   , testGroup "Formatting"

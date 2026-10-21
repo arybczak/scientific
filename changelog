@@ -44,6 +44,9 @@ Unreleased
 	  Before, the exponent wrapped around, so a huge number could decode as
 	  a tiny one.
 
+	* Parsing a number with a long fractional part no longer takes
+	  quadratic time. Ordinary numbers also parse faster.
+
 0.3.10.0
 
 	* Fix run-time crash (introduced in 0.3.9.0) in Eq and Ord when

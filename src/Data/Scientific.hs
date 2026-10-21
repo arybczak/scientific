@@ -923,9 +923,6 @@ isInteger_ s@(Scientific c e)
 instance Read Scientific where
     readPrec = Read.parens $ ReadPrec.lift (ReadP.skipSpaces >> scientificP)
 
--- A strict pair
-data SP = SP !Integer {-# UNPACK #-}!Int
-
 -- | A parser for parsing a floating-point
 -- number into a 'Scientific' value. Example:
 --
@@ -950,17 +947,14 @@ scientificP = do
       step a digit = a * 10 + fromIntegral digit
       {-# INLINE step #-}
 
-  ds <- ReadP.munch1 isDecimal
-  let n = read ds :: Integer
+  intDigits  <- ReadP.munch1 isDecimal
+  fracDigits <- (ReadP.satisfy (== '.') >> ReadP.munch1 isDecimal)
+                ReadP.<++ return ""
 
-  let s = SP n 0
-      fractional = foldDigits (\(SP a e) digit ->
-                                 SP (step a digit) (e-1)) s
+  let coeff = digitsToInteger (intDigits ++ fracDigits)
+      expnt = negate (length fracDigits)
 
-  SP coeff expnt <- (ReadP.satisfy (== '.') >> fractional)
-                    ReadP.<++ return s
-
-  let signedCoeff | pos       =   coeff
+      signedCoeff | pos       =   coeff
                   | otherwise = (-coeff)
 
       eP = do posE <- positive
@@ -972,7 +966,27 @@ scientificP = do
   (ReadP.satisfy isE >>
            ((Scientific signedCoeff . (expnt +)) <$> eP)) `mplus`
      return (Scientific signedCoeff    expnt)
+  where
+    -- Adding one digit at a time would take quadratic time in the number of
+    -- digits.
+    digitsToInteger :: String -> Integer
+    digitsToInteger ds
+        | n <= maxIntDigits = toInteger (go 0 ds)
+        | otherwise         = digitsToInteger hi * magnitude (length lo) + digitsToInteger lo
+      where
+        n :: Int
+        n = length ds
 
+        hi, lo :: String
+        (hi, lo) = splitAt (n `quot` 2) ds
+
+        go :: Int -> String -> Int
+        go !a []       = a
+        go !a (d:rest) = go (a * 10 + ord d - ord '0') rest
+
+        -- The number of decimal digits that always fit in an Int.
+        maxIntDigits :: Int
+        maxIntDigits = length (show (maxBound @Int)) - 1
 
 foldDigits :: (a -> Int -> a) -> a -> ReadP a
 foldDigits f z = do
