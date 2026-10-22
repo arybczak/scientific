@@ -469,7 +469,8 @@ fromRationalRepetendLimited l rational
         longDivWithLimit !c !e _ns 0 = Right (Scientific c e, Nothing)
         longDivWithLimit !c !e  ns !n
             | Just e' <- M.lookup n ns = Right (Scientific c e, Just (-e'))
-            | e <= (-l) = Left (Scientific c e, n % (d * magnitude (-e)))
+            -- -l overflows when l is minBound.
+            | l <= 0 || e <= (-l) = Left (Scientific c e, n % (d * magnitude (-e)))
             | n < d = let !ns' = M.insert n e ns
                       in longDivWithLimit (c * 10) (e - 1) ns' (n * 10)
             | otherwise = case n `quotRemInteger` d of

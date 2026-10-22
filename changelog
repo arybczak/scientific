@@ -61,6 +61,10 @@
 	* Parsing a number with a long fractional part no longer takes
 	  quadratic time. Ordinary numbers also parse faster.
 
+	* 'fromRationalRepetend' and 'fromRationalRepetendLimited' with the
+	  limit minBound return at once, like with any other negative limit.
+	  Before, they ignored this limit and divided without a bound.
+
 	* 'read' fails on a number whose exponent does not fit in an Int, and
 	  'scientificP' only parses such a number up to its exponent. Before,
 	  the exponent wrapped around, e.g. 0.1e-9223372036854775808 was read

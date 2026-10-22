@@ -308,6 +308,11 @@ main = testMain $ testGroup "scientific"
           assertExponentOverflow "the denominator 10^(-minBound) needs an exponent that overflows an Int"
             (toRational (scientific 1 minBound))
       ]
+    , testGroup "fromRationalRepetend"
+      [ testCase "limit minBound" $
+          assertEqual "the negative limit minBound must stop the division at once, like any other negative limit"
+            (Left (0, 1 % 3)) (fromRationalRepetend (Just minBound) (1 % 3))
+      ]
     ]
 
   , testProperty "normalization"
