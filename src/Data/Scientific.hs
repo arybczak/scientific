@@ -679,7 +679,7 @@ instance RealFrac Scientific where
 --
 -- More precisely if @dangerouslySmall c e@ returns 'True' the
 -- scientific number @s@ is guaranteed to be between:
--- @-0.1 > s < 0.1@.
+-- @-0.1 < s < 0.1@.
 --
 -- Note that we avoid computing the number of decimal digits in c
 -- (log10 c) if the exponent is not below the limit.
@@ -713,6 +713,10 @@ toIntegral (Scientific c e) = fromInteger c * magnitude e
 
 -- | Convert a 'RealFloat' (like a 'Double' or 'Float') into a 'Scientific'
 -- number.
+--
+-- A 'Scientific' cannot represent NaN or infinity, so the result for them is
+-- meaningless, e.g. @fromFloatDigits (0/0)@ is a large negative number. Check
+-- the argument with 'isNaN' and 'isInfinite' first.
 --
 -- Note that this function uses 'Numeric.floatToDigits' to compute the digits
 -- and exponent of the 'RealFloat' number. Be aware that the algorithm used in
