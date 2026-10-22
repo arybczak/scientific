@@ -379,32 +379,19 @@ instance Fractional Scientific where
         (d', b) = stripPowers d2 5
         m = max a b
 
--- | Although 'fromRational' is unsafe because it will throw errors on
--- <https://en.wikipedia.org/wiki/Repeating_decimal repeating decimals>,
--- @unsafeFromRational@ is even more unsafe because it will diverge instead (i.e
--- loop and consume all space).
+-- | The same as 'fromRational'. It throws an error on
+-- <https://en.wikipedia.org/wiki/Repeating_decimal repeating decimals>.
+-- Before version 0.3.777.0 it diverged instead (i.e. looped and consumed all
+-- space).
 --
 -- Consider using 'fromRationalRepetend' for these rationals which will detect
 -- the repetition and indicate where it starts.
 unsafeFromRational :: Rational -> Scientific
-unsafeFromRational rational
-    | d == 0    = throw DivideByZero
-    | otherwise = positivize (longDiv 0 0) (numerator rational)
-  where
-    -- Divide the numerator by the denominator using long division.
-    longDiv :: Integer -> Int -> (Integer -> Scientific)
-    longDiv !c !e  0 = Scientific c e
-    longDiv !c !e !n
-                      -- TODO: Use a logarithm here!
-        | n < d     = longDiv (c * 10) (e - 1) (n * 10)
-        | otherwise = case n `quotRemInteger` d of
-                        (#q, r#) -> longDiv (c + q) e r
-
-    d = denominator rational
+unsafeFromRational = fromRational
+{-# DEPRECATED unsafeFromRational "Use fromRational, which is the same function" #-}
 
 -- | Like 'fromRational' and 'unsafeFromRational', this function converts a
--- `Rational` to a `Scientific` but instead of failing or diverging (i.e loop
--- and consume all space) on
+-- `Rational` to a `Scientific` but instead of failing on
 -- <https://en.wikipedia.org/wiki/Repeating_decimal repeating decimals>
 -- it detects the repeating part, the /repetend/, and returns where it starts.
 --

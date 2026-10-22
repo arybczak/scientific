@@ -44,6 +44,10 @@
 	  decimal at once. Before, they first computed digits until the
 	  repetition, so e.g. 1 / 2305843009213693951 did not finish.
 
+	* 'unsafeFromRational' is deprecated, use 'fromRational' instead. It is
+	  now the same function, so it raises an error on a repeating decimal,
+	  instead of looping until memory runs out.
+
 	* Division and 'recip' no longer compute 10^e from the exponents, so
 	  they are safe on untrusted input. Their results compare equal to the
 	  old ones, but can have a different 'coefficient' and
