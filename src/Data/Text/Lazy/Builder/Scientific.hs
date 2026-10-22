@@ -16,8 +16,6 @@ import Data.Text.Lazy.Builder.Int   (decimal)
 import qualified Data.Text as T     (replicate)
 import Utils
 
-import Data.Monoid                  ((<>))
-
 -- | A @Text@ @Builder@ which renders a scientific number to full
 -- precision, using standard decimal notation for arguments whose
 -- absolute value lies between @0.1@ and @9,999,999@, and scientific

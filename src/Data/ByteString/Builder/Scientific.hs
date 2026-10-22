@@ -17,8 +17,6 @@ import           Data.ByteString.Builder.Extra (byteStringCopy)
 
 import Utils
 
-import Data.Monoid                  ((<>))
-
 
 -- | A @ByteString@ @Builder@ which renders a scientific number to full
 -- precision, using standard decimal notation for arguments whose
