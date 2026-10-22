@@ -11,7 +11,6 @@
 module Main where
 
 import           Control.Exception                  hiding (assert)
-import           Control.Monad
 import           Data.Either
 import           Data.Hashable
 import           Data.Int
