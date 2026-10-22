@@ -138,6 +138,9 @@ main = testMain $ testGroup "scientific"
       , testCase "fromRational (1 % 2305843009213693951)" $
           assertRepeatingDecimal "a fraction whose denominator is a prime other than 2 and 5 is a repeating decimal"
             (fromRational @Scientific (1 % 2305843009213693951))
+      , testCase "1 / 1e-100000000" $
+          assertEqual "the quotient must not hold the magnitude 10^100000000 in its coefficient"
+            (1, 100000000) (let q = scientific 1 0 / scientific 1 (-100000000) in (coefficient q, base10Exponent q))
       ]
     ]
 
@@ -293,6 +296,12 @@ main = testMain $ testGroup "scientific"
       , testCase "1e(maxBound) / 1e-1" $
           assertExponentOverflow "the difference maxBound + 1 of the exponents does not fit in an Int"
             (scientific 1 maxBound / scientific 1 (-1))
+      , testCase "1e(maxBound) / 1024e-5" $
+          assertEqual "the exponent maxBound - 5 of the quotient fits in an Int, although the difference maxBound + 5 of the exponents does not"
+            (9765625, maxBound - 5) (let q = scientific 1 maxBound / scientific 1024 (-5) in (coefficient q, base10Exponent q))
+      , testCase "1e(minBound) / 1" $
+          assertEqual "the exponent minBound of the quotient fits in an Int, although its negation does not"
+            (1, minBound) (let q = scientific 1 minBound / scientific 1 0 in (coefficient q, base10Exponent q))
       ]
     , testGroup "Real"
       [ testCase "toRational 1e(minBound)" $
@@ -433,6 +442,12 @@ main = testMain $ testGroup "scientific"
           let s = fromRational r
               (l, _) = fromRationalRepetendUnlimited r
           in (coefficient s, base10Exponent s) === (coefficient l, base10Exponent l)
+    , testProperty "/ equal to Rational" $ \x ->
+        QC.forAll terminatingDivisorGen $ \y ->
+          toRational (x / y) === toRational x / toRational y
+    , testProperty "recip equal to Rational" $
+        QC.forAll terminatingDivisorGen $ \y ->
+          toRational (recip y) === recip (toRational y)
     ]
 
   , testGroup "RealFrac"
@@ -707,6 +722,10 @@ powerOf2And5Gen = (\a b -> 2 ^ a * 5 ^ b) <$> QC.choose @Int (0, 64) <*> QC.choo
 
 terminatingRationalGen :: QC.Gen Rational
 terminatingRationalGen = (%) <$> QC.arbitrary <*> powerOf2And5Gen
+
+-- A nonzero number whose reciprocal is a terminating decimal.
+terminatingDivisorGen :: QC.Gen Scientific
+terminatingDivisorGen = scientific <$> ((*) <$> QC.elements [1, -1] <*> powerOf2And5Gen) <*> intGen
 
 bigIntGen :: QC.Gen Int
 bigIntGen = QC.sized $ \size -> QC.resize (size * 1000) intGen

@@ -349,23 +349,18 @@ instance Real Scientific where
 -- | /WARNING:/ 'recip' and '/' will throw an error when their outputs are
 -- <https://en.wikipedia.org/wiki/Repeating_decimal repeating decimals>.
 --
--- These methods also compute 'Integer' magnitudes (@10^e@). If these methods
--- are applied to arguments which have huge exponents this could fill up all
--- space and crash your program! So don't apply these methods to scientific
--- numbers coming from untrusted sources.
+-- These methods do not compute 'Integer' magnitudes (@10^e@), and their time
+-- and space are bounded by the size of the coefficients. So they can be
+-- applied to scientific numbers coming from untrusted sources.
 --
 -- 'fromRational' will throw an error when the input 'Rational' is a repeating
 -- decimal.  Consider using 'fromRationalRepetend' for these rationals which
 -- will detect the repetition and indicate where it starts.
 instance Fractional Scientific where
-    recip = fromRational . recip . toRational
+    recip = (Scientific 1 0 /)
 
-    Scientific c1 e1 / Scientific c2 e2
-        | d < 0     = fromRational (x / (fromInteger (magnitude (-d))))
-        | otherwise = fromRational (x *  fromInteger (magnitude   d))
-      where
-        d = toIntExponent (toInteger e1 - toInteger e2)
-        x = c1 % c2
+    Scientific c1 e1 / Scientific c2 e2 = case fromRational (c1 % c2) of
+        Scientific c e -> Scientific c (toIntExponent (toInteger e + toInteger e1 - toInteger e2))
 
     fromRational rational
         -- A reduced fraction has a finite decimal expansion exactly when its

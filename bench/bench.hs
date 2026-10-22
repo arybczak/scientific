@@ -112,6 +112,11 @@ main = defaultMain
            ] :: [(Scientific, Scientific)]
          ]
 
+       , bgroup "recip"
+         [ bench (show x) $ nf recip x
+         | x <- [0.4, 0.4e-100] :: [Scientific]
+         ]
+
        ]
     where
       pos :: Fractional a => a

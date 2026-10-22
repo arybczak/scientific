@@ -35,14 +35,20 @@
 
 	* Multiplication raises an error when the exponent of the product does
 	  not fit in an Int, also when the product is 0. Division raises an
-	  error when the difference of the exponents, or its negation, does not
-	  fit in an Int. Before, 1e9223372036854775807 * 1e1 gave the tiny
-	  number 1.0e-9223372036854775808, and 1e-9223372036854775808 / 1e1 did
-	  not finish.
+	  error when the exponent of the quotient does not fit in an Int.
+	  Before, 1e9223372036854775807 * 1e1 gave the tiny number
+	  1.0e-9223372036854775808, and 1e-9223372036854775808 / 1e1 did not
+	  finish.
 
 	* '/', 'recip' and 'fromRational' raise the error for a repeating
 	  decimal at once. Before, they first computed digits until the
 	  repetition, so e.g. 1 / 2305843009213693951 did not finish.
+
+	* Division and 'recip' no longer compute 10^e from the exponents, so
+	  they are safe on untrusted input. Their results compare equal to the
+	  old ones, but can have a different 'coefficient' and
+	  'base10Exponent', e.g. 1 / 1e-3 now has the coefficient 1 and the
+	  exponent 3, instead of 1000 and 0.
 
 	* Binary decoding fails on an exponent that does not fit in an Int.
 	  Before, the exponent wrapped around, so a huge number could decode as
