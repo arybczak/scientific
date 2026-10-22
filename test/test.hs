@@ -15,6 +15,8 @@ import           Control.Monad
 import           Data.Either
 import           Data.Hashable
 import           Data.Int
+import           Data.List
+import           Data.Ratio
 import           Data.Word
 import           Data.Scientific                    as Scientific
 import           Test.Tasty
@@ -123,6 +125,19 @@ main = testMain $ testGroup "scientific"
       [ testCase "1e1000000"  $ assertBool "Should be infinity!" $ isInfinite $
                                   (toRealFloat (read "1e1000000" :: Scientific) :: Double)
       , testCase "1e-1000000" $ (toRealFloat (read "1e-1000000" :: Scientific) :: Double) @?= 0
+      ]
+      -- Without the fix, a repeating quotient computes digits until a
+      -- remainder repeats, which takes up to 2305843009213693950 steps here.
+    , localOption (mkTimeout 10000000) $ testGroup "Fractional"
+      [ testCase "1 / 2305843009213693951" $
+          assertRepeatingDecimal "1 divided by a prime other than 2 and 5 is a repeating decimal"
+            (scientific 1 0 / scientific 2305843009213693951 0)
+      , testCase "recip 2305843009213693951" $
+          assertRepeatingDecimal "the reciprocal of a prime other than 2 and 5 is a repeating decimal"
+            (recip (scientific 2305843009213693951 0))
+      , testCase "fromRational (1 % 2305843009213693951)" $
+          assertRepeatingDecimal "a fraction whose denominator is a prime other than 2 and 5 is a repeating decimal"
+            (fromRational @Scientific (1 % 2305843009213693951))
       ]
     ]
 
@@ -412,6 +427,14 @@ main = testMain $ testGroup "scientific"
         (fromRational . toRational) x === theSci x
     ]
 
+  , testGroup "Fractional"
+    [ testProperty "fromRational gives the same coefficient and exponent as long division" $
+        QC.forAll terminatingRationalGen $ \r ->
+          let s = fromRational r
+              (l, _) = fromRationalRepetendUnlimited r
+          in (coefficient s, base10Exponent s) === (coefficient l, base10Exponent l)
+    ]
+
   , testGroup "RealFrac"
     [ testGroup "Equal to Rational"
       [ testProperty "properFraction" $ \x ->
@@ -505,6 +528,15 @@ main = testMain $ testGroup "scientific"
         case r of
           Left (ErrorCall msg) -> assertEqual preface "Data.Scientific: exponent overflow" msg
           Right _ -> assertFailure (preface ++ "\nexpected the exponent overflow error, but the value was computed")
+
+    assertRepeatingDecimal :: String -> a -> Assertion
+    assertRepeatingDecimal preface x = do
+        r <- try @ErrorCall (evaluate x)
+        case r of
+          Left (ErrorCall msg) ->
+            assertBool (preface ++ "\nexpected the repeating decimal error, but got: " ++ msg)
+              ("repeating decimal" `isInfixOf` msg)
+          Right _ -> assertFailure (preface ++ "\nexpected the repeating decimal error, but the value was computed")
 
     -- The encoded number has the coefficient 1.
     decodeExponent :: Integer -> Either String Scientific
@@ -667,6 +699,14 @@ nonNegativeScientificGen =
 
 normalizedScientificGen :: QC.Gen Scientific
 normalizedScientificGen = Scientific.normalize <$> QC.arbitrary
+
+-- The divisors of a power of 10, i.e. the denominators of terminating
+-- decimals.
+powerOf2And5Gen :: QC.Gen Integer
+powerOf2And5Gen = (\a b -> 2 ^ a * 5 ^ b) <$> QC.choose @Int (0, 64) <*> QC.choose @Int (0, 64)
+
+terminatingRationalGen :: QC.Gen Rational
+terminatingRationalGen = (%) <$> QC.arbitrary <*> powerOf2And5Gen
 
 bigIntGen :: QC.Gen Int
 bigIntGen = QC.sized $ \size -> QC.resize (size * 1000) intGen

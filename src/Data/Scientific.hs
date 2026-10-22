@@ -367,23 +367,27 @@ instance Fractional Scientific where
         d = toIntExponent (toInteger e1 - toInteger e2)
         x = c1 % c2
 
-    fromRational rational =
-        case mbRepetendIx of
-          Nothing -> s
-          Just _ix -> error $
+    fromRational rational
+        -- A reduced fraction has a finite decimal expansion exactly when its
+        -- denominator has no prime factors other than 2 and 5.
+        | d' /= 1 = error $
             "fromRational has been applied to a repeating decimal " ++
             "which can't be represented as a Scientific! " ++
             "It's better to avoid performing fractional operations on Scientifics " ++
             "and convert them to other fractional types like Double as early as possible."
+        -- n / (2^a * 5^b) == n * 2^(m - a) * 5^(m - b) / 10^m
+        | otherwise = Scientific (numerator rational * 2 ^ (m - a) * 5 ^ (m - b)) (-m)
       where
-        (s, mbRepetendIx) = fromRationalRepetendUnlimited rational
+        d2, d' :: Integer
+        a, b, m :: Int
+        (d2, a) = stripPowers (denominator rational) 2
+        (d', b) = stripPowers d2 5
+        m = max a b
 
 -- | Although 'fromRational' is unsafe because it will throw errors on
 -- <https://en.wikipedia.org/wiki/Repeating_decimal repeating decimals>,
 -- @unsafeFromRational@ is even more unsafe because it will diverge instead (i.e
--- loop and consume all space). Though it will be more efficient because it
--- doesn't need to consume space linear in the number of digits in the resulting
--- scientific to detect the repetition.
+-- loop and consume all space).
 --
 -- Consider using 'fromRationalRepetend' for these rationals which will detect
 -- the repetition and indicate where it starts.
