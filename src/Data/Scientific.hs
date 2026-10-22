@@ -390,17 +390,21 @@ unsafeFromRational :: Rational -> Scientific
 unsafeFromRational = fromRational
 {-# DEPRECATED unsafeFromRational "Use fromRational, which is the same function" #-}
 
--- | Like 'fromRational' and 'unsafeFromRational', this function converts a
--- `Rational` to a `Scientific` but instead of failing on
+-- | Like 'fromRational', this function converts a `Rational` to a `Scientific`
+-- but instead of failing on
 -- <https://en.wikipedia.org/wiki/Repeating_decimal repeating decimals>
 -- it detects the repeating part, the /repetend/, and returns where it starts.
 --
--- To detect the repetition this function consumes space linear in the number of
--- digits in the resulting scientific. In order to bound the space usage an
--- optional limit can be specified. If the number of digits reaches this limit
--- @Left (s, r)@ will be returned. Here @s@ is the 'Scientific' constructed so
--- far and @r@ is the remaining 'Rational'. @toRational s + r@ yields the
--- original 'Rational'
+-- To detect the repetition this function consumes time and space linear in the
+-- number of digits in the resulting scientific. The repetend of @1 % d@ can be
+-- up to @d - 1@ digits long, e.g. the repetend of @1 % 2305843009213693951@ has
+-- 1152921504606846975 digits. So specify a limit when the 'Rational' comes from
+-- an untrusted source.
+--
+-- In order to bound the space usage an optional limit can be specified. If the
+-- number of digits reaches this limit @Left (s, r)@ will be returned. Here @s@
+-- is the 'Scientific' constructed so far and @r@ is the remaining 'Rational'.
+-- @toRational s + r@ yields the original 'Rational'
 --
 -- If the limit is not reached or no limit was specified @Right (s,
 -- mbRepetendIx)@ will be returned. Here @s@ is the 'Scientific' without any
@@ -474,6 +478,10 @@ fromRationalRepetendLimited l rational
         d = denominator rational
 
 -- | Like 'fromRationalRepetend' but doesn't accept a limit.
+--
+-- /WARNING:/ the repetend can have almost as many digits as the denominator,
+-- so don't apply this function to a 'Rational' from an untrusted source. See
+-- 'fromRationalRepetend'.
 fromRationalRepetendUnlimited :: Rational -> (Scientific, Maybe Int)
 fromRationalRepetendUnlimited rational
         | d == 0    = throw DivideByZero
